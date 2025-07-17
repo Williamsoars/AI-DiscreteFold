@@ -39,9 +39,4 @@ def run_pipeline(uniprot_id: str, pdb_id: str, db_path: str, epochs=20):
     rmsd = compute_rmsd(true_coords, pred_coords)
     print(f"RMSD da predição: {rmsd:.4f}")
 
-if __name__ == "__main__":
-    # Exemplo de IDs para teste
-    uniprot_id = "P69905"  # Hemoglobina alpha
-    pdb_id = "1A3N"
-    db_path = "/caminho/para/uniclust30_2021_03"  # Ajuste conforme seu ambiente
-    run_pipeline(uniprot_id, pdb_id, db_path)
+
