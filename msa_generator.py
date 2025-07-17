@@ -32,8 +32,4 @@ def run_hhblits(fasta_path: str, output_dir: str, db_path: str):
     subprocess.run(command, check=True)
     return output_a3m
 
-# Exemplo de uso (main opcional para debug)
-if __name__ == "__main__":
-    fasta = "example.fasta"
-    db = "/caminho/para/uniclust30_2021_03"
-    run_hhblits(fasta, "msa_output", db)
+
