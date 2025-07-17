@@ -54,14 +54,4 @@ def esm_embedding_from_fasta(fasta_path: str) -> torch.Tensor:
 
     return torch.stack(sequence_representations)
 
-def main():
-    # Exemplo: one-hot embedding
-    embedding = msa_to_embedding("msa_output/output.a3m")
-    print("Shape do embedding MSA (one-hot):", embedding.shape)
 
-    # Exemplo: ESM-1b embedding
-    esm_emb = esm_embedding_from_fasta("example.fasta")
-    print("Shape do embedding ESM-1b:", esm_emb.shape)
-
-if __name__ == "__main__":
-    main()
