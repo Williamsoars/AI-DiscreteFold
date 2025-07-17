@@ -49,9 +49,5 @@ def train_folding_model(fasta_path: str, pdb_path: str, epochs=20):
 
     return model
 
-# Exemplo de uso
-if __name__ == "__main__":
-    fasta = "example.fasta"
-    pdb = "pdb_structures/pdb1a3n.ent"
-    model = train_folding_model(fasta, pdb)
+
 
