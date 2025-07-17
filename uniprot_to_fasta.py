@@ -26,8 +26,4 @@ def extract_fasta_from_uniprot(protein_id):
         print(f"Erro ao buscar FASTA de {protein_id}")
         return None
 
-# Exemplo de uso
-if __name__ == "__main__":
-    protein_id = "P69905"  # Hemoglobina subunitária alpha humana
-    fasta = extract_fasta_from_uniprot(protein_id)
-    print(fasta)
+
