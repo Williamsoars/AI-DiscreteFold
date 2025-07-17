@@ -1,43 +1,57 @@
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader, TensorDataset
-from msa_embedding import msa_to_embedding
+from msa_embedding import esm_embedding_from_fasta
+from pdb_structure import extract_ca_coordinates
+import numpy as np
 
-class SimpleProteinTransformer(nn.Module):
-    def __init__(self, input_dim, embed_dim=128, n_heads=4, n_layers=2):
+class FoldingRegressor(nn.Module):
+    def __init__(self, input_dim, hidden_dim=256, num_layers=4):
         super().__init__()
-        self.embedding = nn.Linear(input_dim, embed_dim)
-        encoder_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=n_heads)
-        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
-        self.classifier = nn.Linear(embed_dim, 3)  # Exemplo: 3 classes estruturais
+        layers = [nn.Linear(input_dim, hidden_dim), nn.ReLU()]
+        for _ in range(num_layers - 1):
+            layers += [nn.Linear(hidden_dim, hidden_dim), nn.ReLU()]
+        layers += [nn.Linear(hidden_dim, 3)]  # 3D coord
+        self.model = nn.Sequential(*layers)
 
     def forward(self, x):
-        x = self.embedding(x)
-        x = self.transformer(x)
-        x = x.mean(dim=1)  # Pooling
-        return self.classifier(x)
+        return self.model(x)
 
-def train_model(msa_emb_path: str):
-    data = msa_to_embedding(msa_emb_path)
-    data_tensor = torch.tensor(data, dtype=torch.float32)
-    labels = torch.randint(0, 3, (data.shape[0],))  # Fake labels só p/ protótipo
+def train_folding_model(fasta_path: str, pdb_path: str, epochs=20):
+    # Embeddings e coordenadas
+    embeddings = esm_embedding_from_fasta(fasta_path)  # shape: (1, d)
+    coords = extract_ca_coordinates(pdb_path)          # shape: (n_res, 3)
 
-    dataset = TensorDataset(data_tensor, labels)
-    loader = DataLoader(dataset, batch_size=8, shuffle=True)
+    if embeddings.shape[0] != coords.shape[0]:
+        raise ValueError(f"Tamanho do embedding ({embeddings.shape[0]}) e das coords ({coords.shape[0]}) não coincidem")
 
-    model = SimpleProteinTransformer(input_dim=data.shape[2])
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+    x_tensor = embeddings.float()
+    y_tensor = torch.tensor(coords, dtype=torch.float32)
 
-    for epoch in range(5):
+    dataset = TensorDataset(x_tensor, y_tensor)
+    loader = DataLoader(dataset, batch_size=1, shuffle=True)
+
+    model = FoldingRegressor(input_dim=embeddings.shape[1])
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
+
+    model.train()
+    for epoch in range(epochs):
+        total_loss = 0
         for batch_x, batch_y in loader:
             pred = model(batch_x)
             loss = criterion(pred, batch_y)
             loss.backward()
             optimizer.step()
             optimizer.zero_grad()
-        print(f"Epoch {epoch+1}: loss {loss.item():.4f}")
+            total_loss += loss.item()
+        print(f"Epoch {epoch+1}/{epochs} - Loss: {total_loss:.4f}")
 
-# Exemplo
+    return model
+
+# Exemplo de uso
 if __name__ == "__main__":
-    train_model("msa_output/output.a3m")
+    fasta = "example.fasta"
+    pdb = "pdb_structures/pdb1a3n.ent"
+    model = train_folding_model(fasta, pdb)
+
