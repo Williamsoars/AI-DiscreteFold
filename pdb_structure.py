@@ -41,9 +41,3 @@ def extract_ca_coordinates(pdb_file: str) -> np.ndarray:
 
     return np.array(coords)
 
-# Exemplo de uso
-if __name__ == "__main__":
-    pdb_id = "1A3N"
-    pdb_path = download_pdb(pdb_id)
-    ca_coords = extract_ca_coordinates(pdb_path)
-    print(f"Shape das coordenadas CA: {ca_coords.shape}")
