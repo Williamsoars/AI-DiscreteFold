@@ -1,39 +1,67 @@
-import os
-import subprocess
-from pathlib import Path
+import numpy as np
+import torch
+import esm
+from Bio import SeqIO
 
-def run_hhblits(fasta_path: str, output_dir: str, db_path: str):
+def parse_a3m(file_path: str) -> list[str]:
     """
-    Executa HHblits para gerar o MSA a partir de uma sequência FASTA.
-    
-    Args:
-        fasta_path (str): Caminho para o arquivo FASTA.
-        output_dir (str): Diretório onde o MSA será salvo.
-        db_path (str): Caminho para o banco de dados (ex: uniclust30).
-    
-    Returns:
-        str: Caminho do arquivo .a3m gerado.
+    Extrai as sequências de um arquivo .a3m.
     """
-    Path(output_dir).mkdir(parents=True, exist_ok=True)
-    output_a3m = os.path.join(output_dir, "output.a3m")
+    with open(file_path, 'r') as file:
+        lines = file.readlines()
+        sequences = [line.strip() for line in lines if not line.startswith('>')]
+    return sequences
 
-    command = [
-        "hhblits",
-        "-i", fasta_path,
-        "-o", os.path.join(output_dir, "output.hhr"),
-        "-oa3m", output_a3m,
-        "-d", db_path,
-        "-n", "3",
-        "-e", "1e-3",
-        "-cpu", "4"
-    ]
+def encode_msa_onehot(msa: list[str], alphabet="ACDEFGHIKLMNPQRSTVWY-") -> np.ndarray:
+    """
+    Converte MSA em codificação one-hot simplificada (para protótipo).
+    """
+    alphabet_dict = {char: i for i, char in enumerate(alphabet)}
+    encoded = np.zeros((len(msa), len(msa[0]), len(alphabet)), dtype=np.float32)
 
-    print(f"Executando HHblits: {' '.join(command)}")
-    subprocess.run(command, check=True)
-    return output_a3m
+    for i, seq in enumerate(msa):
+        for j, char in enumerate(seq):
+            if char in alphabet_dict:
+                encoded[i, j, alphabet_dict[char]] = 1.0
+    return encoded
 
-# Exemplo de uso (main opcional para debug)
+def msa_to_embedding(a3m_path: str) -> np.ndarray:
+    msa = parse_a3m(a3m_path)
+    embedding = encode_msa_onehot(msa)
+    return embedding
+
+def esm_embedding_from_fasta(fasta_path: str) -> torch.Tensor:
+    """
+    Gera embeddings do ESM-1b para a sequência FASTA.
+    """
+    model, alphabet = esm.pretrained.esm1b_t33_650M_UR50S()
+    batch_converter = alphabet.get_batch_converter()
+    model.eval()
+
+    records = list(SeqIO.parse(fasta_path, "fasta"))
+    data = [(record.id, str(record.seq)) for record in records]
+
+    batch_labels, batch_strs, batch_tokens = batch_converter(data)
+
+    with torch.no_grad():
+        results = model(batch_tokens, repr_layers=[33], return_contacts=False)
+    token_representations = results["representations"][33]
+
+    # Remove CLS/SEP tokens, pega só a sequência
+    sequence_representations = []
+    for i, (_, seq) in enumerate(data):
+        sequence_representations.append(token_representations[i, 1:len(seq)+1].mean(0))
+
+    return torch.stack(sequence_representations)
+
+def main():
+    # Exemplo: one-hot embedding
+    embedding = msa_to_embedding("msa_output/output.a3m")
+    print("Shape do embedding MSA (one-hot):", embedding.shape)
+
+    # Exemplo: ESM-1b embedding
+    esm_emb = esm_embedding_from_fasta("example.fasta")
+    print("Shape do embedding ESM-1b:", esm_emb.shape)
+
 if __name__ == "__main__":
-    fasta = "example.fasta"
-    db = "/caminho/para/uniclust30_2021_03"
-    run_hhblits(fasta, "msa_output", db)
+    main()
