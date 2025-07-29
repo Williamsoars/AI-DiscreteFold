@@ -27,8 +27,8 @@ Biblioteca Python para predição da estrutura 3D de proteínas a partir de sequ
 ## 🚀 Instalação
 
 ```bash
-git clone https://github.com/seu-usuario/protein-folding-toolkit.git
-cd protein-folding-toolkit
+git clone https://github.com/Williamsoars/AI-DiscreteFold.git
+cd AI-DiscreteFold
 pip install -r requirements.txt
 
 # Configurar HHblits (necessário para MSA)
